@@ -1,0 +1,434 @@
+import { useState, useRef, useCallback, useEffect } from "react";
+
+const PRESETS = [
+  { id:0, label:"— Custom (write your own) —", setup:"", twist:"" },
+  { id:1, label:"#1 Diaspora dream", setup:"विदेशबाट नेपाल बनाउने\nसपना देख्ने मान्छे...", twist:"...१० वर्षदेखि\nफर्कने टिकट काट्दैन।" },
+  { id:2, label:"#2 Neta ko khana", setup:"नेता भ्रष्ट छन् भन्ने\nमान्छे...", twist:"...उही नेताको चुनावमा\nखाना खाएर आउँछ।" },
+  { id:3, label:"#3 Pollution", setup:"फोहर नेपाल भनेर\nगुनासो गर्ने मान्छे...", twist:"...गाडीको झ्याल खोलेर\nफोहोर फ्याँक्छ।" },
+  { id:4, label:"#4 Buy local", setup:"\"स्वदेशी उत्पादन किनौं!\"\nभन्ने मान्छे...", twist:"...Daraz खोल्छ,\nचिनियाँ फोन अर्डर गर्छ।" },
+  { id:5, label:"#5 Universal mirror", setup:"नेपाल किन यस्तो भयो\nभनेर रुने मान्छे...", twist:"...त्यही नेपाल बनाउन\nआफूले के गर्यो?" },
+  { id:6, label:"#6 Election", setup:"\"अर्को पटक राम्रो\nमान्छेलाई भोट दिन्छु...\"", twist:"...अर्को पटक पनि\nउही मान्छे जित्यो।" },
+  { id:7, label:"#7 Corruption", setup:"\"भ्रष्टाचार हटाउनुपर्छ!\"\nभन्ने मान्छे...", twist:"...ट्राफिक प्रहरीलाई\n२०० रुपैयाँ दिन्छ।" },
+  { id:8, label:"#8 Remittance", setup:"हाम्रो देशले हामीलाई\nकेही दिएन भन्ने मान्छे...", twist:"...उही देशलाई रेमिट्यान्सले\nबचाइरहेको छ।" },
+];
+
+// ── DHAKA TOPI ────────────────────────────────────────────────────
+const DhakaTopi = () => (
+  <g>
+    <ellipse cx="50" cy="29" rx="20" ry="5.5" fill="#550808"/>
+    <path d="M31,28 L36,7 Q50,2 64,7 L69,28 Q50,33 31,28 Z" fill="#B81212"/>
+    <polyline points="33,23 37,19 41,23 45,19 49,23 53,19 57,23 61,19 65,23" fill="none" stroke="#1A0000" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+    <polygon points="41,14 44.5,10.5 48,14 44.5,17.5" fill="#1A0000"/>
+    <polygon points="50,14 53.5,10.5 57,14 53.5,17.5" fill="#1A0000"/>
+    <polygon points="45.5,10 47,8.5 48.5,10 47,11.5" fill="#CC7700"/>
+    <polygon points="52.5,10 54,8.5 55.5,10 54,11.5" fill="#CC7700"/>
+    <path d="M37,8 Q50,4 63,8" fill="none" stroke="#CC8800" strokeWidth="2" strokeLinecap="round"/>
+    <path d="M36,7 Q43,2 50,1 Q57,2 64,7" fill="none" stroke="#E03030" strokeWidth="1.8" strokeLinecap="round"/>
+    <ellipse cx="50" cy="28" rx="18" ry="3.5" fill="none" stroke="#8A0808" strokeWidth="1.8"/>
+    <rect x="44" y="19" width="12" height="8" rx="1" fill="#003893"/>
+    <polygon points="44,19 50,23 44,27" fill="#DC143C"/>
+  </g>
+);
+
+// ── STAR MASCOT ───────────────────────────────────────────────────
+const StarMascot = ({ visible, scale = 1 }) => (
+  <div style={{
+    position:"absolute", bottom:`${22*scale}%`, left:"50%",
+    transform:`translateX(-50%) scale(${visible?1:0})`,
+    transition:"transform 0.5s cubic-bezier(0.34,1.56,0.64,1)",
+    width:96*scale, height:96*scale,
+    filter:"drop-shadow(0 4px 18px rgba(220,20,60,0.45))",
+  }}>
+    <svg viewBox="0 0 100 110" width={96*scale} height={106*scale}>
+      <DhakaTopi />
+      <polygon points="50,20 62,50 95,50 70,68 80,100 50,82 20,100 30,68 5,50 38,50" fill="#F5C518" stroke="#C8922A" strokeWidth="2"/>
+      <ellipse cx="40" cy="60" rx="6" ry="7" fill="#1a1a1a"/>
+      <ellipse cx="60" cy="60" rx="6" ry="7" fill="#1a1a1a"/>
+      <circle cx="42" cy="58" r="2.2" fill="white"/>
+      <circle cx="62" cy="58" r="2.2" fill="white"/>
+      <path d="M42,74 Q50,82 58,74" fill="none" stroke="#C8922A" strokeWidth="2.5" strokeLinecap="round"/>
+      <rect x="43" y="76" width="14" height="10" rx="2" fill="#003893"/>
+      <polygon points="43,76 50,81 43,86" fill="#DC143C"/>
+      <circle cx="50" cy="81" r="3" fill="white"/>
+    </svg>
+  </div>
+);
+
+// ── MOUNTAINS ─────────────────────────────────────────────────────
+const Mountains = ({ progress, h = 200 }) => {
+  const p = Math.max(0, Math.min(1, progress));
+  const W = 390, H = h;
+  const offY = (1 - p) * H * 1.3;
+  const py = fh => H * 0.3 + fh * (H * 0.7);
+  const mkPath = pts => `M0,${H} ` + pts.map(([xf, fh]) => `L${(W*xf).toFixed(1)},${py(fh).toFixed(1)}`).join(" ") + ` L${W},${H} Z`;
+  return (
+    <svg style={{ position:"absolute", bottom:0, left:0, width:"100%", height:H, transform:`translateY(${offY.toFixed(1)}px)` }}
+      viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none">
+      <path d={mkPath([[0,.28],[.06,.08],[.13,.18],[.20,.05],[.27,.13],[.32,.02],[.38,.09],[.43,.0],[.48,.04],[.52,.0],[.56,.04],[.62,.10],[.68,.04],[.75,.14],[.82,.07],[.89,.17],[1,.24]])} fill="rgba(20,3,3,0.88)"/>
+      <path d={mkPath([[0,.40],[.05,.22],[.12,.32],[.18,.16],[.25,.26],[.31,.12],[.37,.20],[.43,.10],[.48,.15],[.52,.10],[.57,.16],[.63,.22],[.69,.15],[.76,.26],[.83,.18],[.90,.28],[1,.36]])} fill="rgba(12,2,2,0.96)"/>
+      <path d={mkPath([[0,.52],[.07,.36],[.14,.44],[.22,.30],[.30,.38],[.37,.26],[.44,.32],[.50,.22],[.56,.28],[.62,.34],[.69,.26],[.76,.36],[.83,.29],[.90,.38],[1,.46]])} fill="#040101"/>
+    </svg>
+  );
+};
+
+// ── THE REEL CARD CONTENT (reused for both preview and fullscreen) ──
+const ReelCard = ({ setupLines, twistLines, phase, flash, shaking, lineW, mtProg, cardW, cardH, after, showSetup, showLine, showTaraPiv, showTwist, showMt, showCrash, showBrand, setupOp, twistOp, countdown }) => {
+  const s = cardH / 693; // scale factor based on card height
+  const isCountingDown = countdown !== null;
+
+  return (
+    <div style={{ width:cardW, height:cardH, background:phase==="idle"&&!isCountingDown?"#000":"#000D1F", position:"relative", overflow:"hidden", transition:"background 0.6s ease" }}>
+
+      {/* COUNTDOWN OVERLAY */}
+      {isCountingDown && (
+        <div style={{ position:"absolute", inset:0, zIndex:200, background:"rgba(0,13,31,0.93)", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:12*s }}>
+          <div style={{ fontFamily:"Georgia,serif", fontSize:13*s, color:"rgba(220,20,60,0.7)", letterSpacing:3, textTransform:"uppercase" }}>start screen record now</div>
+          <div key={countdown} style={{ fontFamily:"'Bebas Neue',sans-serif", fontSize:180*s, color:"#DC143C", lineHeight:1, animation:"countPop .4s cubic-bezier(.34,1.56,.64,1) both" }}>{countdown}</div>
+          <div style={{ fontFamily:"'Noto Sans Devanagari',serif", fontSize:18*s, color:"rgba(255,255,255,0.38)" }}>रेकर्ड सुरु गर्नुस्...</div>
+        </div>
+      )}
+
+      {/* Flash */}
+      {flash && <div style={{ position:"absolute", inset:0, background:"white", zIndex:100, opacity:.9 }} />}
+
+      {/* Blue side stripes */}
+      {!isCountingDown && phase!=="idle" && <>
+        <div style={{ position:"absolute", left:0, top:0, bottom:0, width:5*s, background:"#003893", opacity:.85, zIndex:5 }} />
+        <div style={{ position:"absolute", right:0, top:0, bottom:0, width:5*s, background:"#003893", opacity:.85, zIndex:5 }} />
+      </>}
+
+      {/* Red strips */}
+      {!isCountingDown && phase!=="idle" && <>
+        <div style={{ position:"absolute", top:0, left:0, right:0, height:4*s, background:"#DC143C", zIndex:6 }} />
+        <div style={{ position:"absolute", bottom:0, left:0, right:0, height:4*s, background:"#DC143C", zIndex:6 }} />
+      </>}
+
+      {/* Pulse ring */}
+      {["linedraw","pause2"].includes(phase) && (
+        <div style={{ position:"absolute", top:"40%", left:"50%", transform:"translate(-50%,-50%)", width:280*s, height:280*s, borderRadius:"50%", border:`1px solid rgba(220,20,60,0.12)`, animation:"bgPulse 2s ease infinite", zIndex:1 }} />
+      )}
+
+      {/* INTRO */}
+      {phase==="intro" && (
+        <div className="deva intro" style={{ position:"absolute", top:"42%", left:0, right:0, textAlign:"center", fontSize:22*s, color:"rgba(255,255,255,0.48)", zIndex:10 }}>
+          एउटा कुरा सोध्नु छ...
+        </div>
+      )}
+
+      {/* SETUP */}
+      {showSetup && (
+        <div style={{ position:"absolute", top:88*s, left:16*s, right:16*s, opacity:setupOp, transition:"opacity 0.8s ease", zIndex:10 }}>
+          {setupLines.map((line,i) => (
+            <div key={i} className={`deva${phase===(i===0?"setup1":"setup2")?" slam":""}`}
+              style={{ fontSize:28*s, fontWeight:700, color:"#FFFFFF", lineHeight:1.55, textAlign:"center", opacity:phase==="setup1"&&i===1?0:1, animationDelay:i===1?".05s":"0s" }}>
+              {line}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* RED DIVIDER — always below setup text */}
+      {showLine && (
+        <div style={{ position:"absolute", top:220*s, left:20*s, width:`${lineW*(cardW-40*s)}px`, height:2.5*s, background:"#DC143C", borderRadius:2, zIndex:10 }} />
+      )}
+
+      {/* तर? PIVOT */}
+      {showTaraPiv && (
+        <div className="deva slam" style={{ position:"absolute", top:232*s, left:0, right:0, textAlign:"center", fontSize:82*s, fontWeight:900, color:"#DC143C", lineHeight:1, zIndex:10, opacity:after("mountain")?0:1, transition:"opacity 0.6s ease" }}>
+          तर?
+        </div>
+      )}
+
+      {/* TWIST */}
+      {showTwist && (
+        <div style={{ position:"absolute", top:370*s, left:16*s, right:16*s, opacity:twistOp, transition:"opacity 0.8s ease", zIndex:10 }}>
+          {twistLines.map((line,i) => (
+            <div key={i} className={`deva${phase==="tara"?" slideup":""}`}
+              style={{ fontSize:25*s, fontWeight:400, color:"#C0B09A", lineHeight:1.6, textAlign:"center", animationDelay:`${i*0.18}s`, animationFillMode:"both" }}>
+              {line}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* MOUNTAINS */}
+      {showMt && <Mountains progress={mtProg} h={200*s} />}
+
+      {/* तर? CRASH */}
+      {showCrash && (
+        <div className={`deva${shaking?" shaking":""}`}
+          style={{ position:"absolute", top:"50%", left:"50%", transform:"translate(-50%,-50%)", fontSize:155*s, fontWeight:900, color:"#DC143C", lineHeight:1, whiteSpace:"nowrap",
+            animation:phase==="crash"&&!shaking?"slamIn .28s cubic-bezier(.22,1,.36,1) both":undefined, zIndex:20 }}>
+          तर?
+        </div>
+      )}
+
+      {/* BRAND */}
+      {showBrand && <>
+        <div className="deva fadein" style={{ position:"absolute", top:"7%", left:0, right:0, textAlign:"center", fontSize:66*s, fontWeight:900, color:"#DC143C", lineHeight:1, zIndex:20 }}>तर?</div>
+        <StarMascot visible={after("brand1")} scale={s} />
+        {after("brand2") && <div className="bebas fadein" style={{ position:"absolute", bottom:"16%", left:0, right:0, textAlign:"center", fontSize:34*s, color:"#FFFFFF", letterSpacing:4, zIndex:20 }}>TARA PARTY NEPAL</div>}
+        {after("brand3") && <div className="deva fadein" style={{ position:"absolute", bottom:"12%", left:0, right:0, textAlign:"center", fontSize:16*s, color:"rgba(255,255,255,0.68)", zIndex:20 }}>हसाउने पनि, सोचाउने पनि</div>}
+        {after("brand4") && <div className="fadein" style={{ position:"absolute", bottom:"8%", left:0, right:0, textAlign:"center", fontSize:13*s, color:"rgba(220,20,60,0.82)", letterSpacing:2, zIndex:20 }}>@TaraPartyNepal</div>}
+      </>}
+
+      {phase==="end" && <div style={{ position:"absolute", inset:0, background:"#000D1F", opacity:.55, transition:"opacity 1.5s ease", zIndex:50, pointerEvents:"none" }} />}
+    </div>
+  );
+};
+
+// ── MAIN APP ──────────────────────────────────────────────────────
+export default function App() {
+  const [presetIdx, setPresetIdx] = useState(1);
+  const [setupText, setSetupText] = useState(PRESETS[1].setup);
+  const [twistText, setTwistText] = useState(PRESETS[1].twist);
+  const [phase, setPhase] = useState("idle");
+  const [playing, setPlaying] = useState(false);
+  const [countdown, setCountdown] = useState(null);
+  const [flash, setFlash] = useState(false);
+  const [shaking, setShaking] = useState(false);
+  const [lineW, setLineW] = useState(0);
+  const [mtProg, setMtProg] = useState(0);
+  const [fullscreen, setFullscreen] = useState(false);
+  const [fsScale, setFsScale] = useState(1);
+  const [copied, setCopied] = useState(false);
+  const timers = useRef([]);
+  const countTimers = useRef([]);
+  const lineRef = useRef(null);
+  const mtRef = useRef(null);
+
+  // Calculate fullscreen scale
+  useEffect(() => {
+    const calc = () => {
+      const sw = window.innerWidth, sh = window.innerHeight;
+      setFsScale(Math.min(sw / 390, sh / 693));
+    };
+    calc();
+    window.addEventListener("resize", calc);
+    return () => window.removeEventListener("resize", calc);
+  }, []);
+
+  const setupLines = setupText.split("\n").filter(l => l.trim()).slice(0, 4);
+  const twistLines = twistText.split("\n").filter(l => l.trim()).slice(0, 4);
+
+  const caption = `${setupText.replace(/\n/g," ")}\n\nतर?\n\n${twistText.replace(/\n/g," ")}\n\n#TaraPartyNepal #NepalMemes #NepalPolitics #NepaliDiaspora\n@TaraPartyNepal`;
+
+  const clearAll = () => {
+    timers.current.forEach(clearTimeout); timers.current = [];
+    countTimers.current.forEach(clearTimeout); countTimers.current = [];
+    if (lineRef.current) cancelAnimationFrame(lineRef.current);
+    if (mtRef.current) cancelAnimationFrame(mtRef.current);
+  };
+
+  const reset = useCallback(() => {
+    clearAll();
+    setPhase("idle"); setPlaying(false); setCountdown(null);
+    setFlash(false); setShaking(false); setLineW(0); setMtProg(0);
+    setFullscreen(false);
+  }, []);
+
+  const animLine = useCallback(() => {
+    const start = performance.now(), dur = 1400;
+    const tick = now => { setLineW(Math.min((now-start)/dur,1)); if(now-start<dur) lineRef.current=requestAnimationFrame(tick); };
+    lineRef.current = requestAnimationFrame(tick);
+  }, []);
+
+  const animMt = useCallback(() => {
+    const start = performance.now(), dur = 1100;
+    const tick = now => { const p=Math.min((now-start)/dur,1); setMtProg(1-Math.pow(1-p,3)); if(now-start<dur) mtRef.current=requestAnimationFrame(tick); };
+    mtRef.current = requestAnimationFrame(tick);
+  }, []);
+
+  const sched = (fn, ms) => { const t=setTimeout(fn,ms); timers.current.push(t); };
+
+  const startReel = useCallback(() => {
+    setPlaying(true);
+    sched(()=>setPhase("bg"),500);
+    sched(()=>setPhase("intro"),1000);
+    sched(()=>setPhase("setup1"),2800);
+    sched(()=>setPhase("setup2"),4000);
+    sched(()=>{ setPhase("linedraw"); animLine(); },5200);
+    sched(()=>setPhase("tara"),6800);
+    sched(()=>setPhase("pause2"),7600);
+    sched(()=>{ setPhase("mountain"); animMt(); },10500);
+    sched(()=>{ setPhase("crash"); setFlash(true); setTimeout(()=>setFlash(false),140); setShaking(true); setTimeout(()=>setShaking(false),380); },11700);
+    sched(()=>setPhase("hold"),12200);
+    sched(()=>setPhase("brand1"),13400);
+    sched(()=>setPhase("brand2"),14200);
+    sched(()=>setPhase("brand3"),14900);
+    sched(()=>setPhase("brand4"),15600);
+    sched(()=>{ setPhase("end"); setPlaying(false); },17200);
+  }, [animLine, animMt]);
+
+  const play = useCallback(() => {
+    reset();
+    setFullscreen(true);
+    setCountdown(3);
+    const t1=setTimeout(()=>setCountdown(2),1000);
+    const t2=setTimeout(()=>setCountdown(1),2000);
+    const t3=setTimeout(()=>{ setCountdown(null); startReel(); },3000);
+    countTimers.current=[t1,t2,t3];
+  }, [reset, startReel]);
+
+  const ORDER = ["idle","bg","intro","setup1","setup2","linedraw","tara","pause2","mountain","crash","hold","brand1","brand2","brand3","brand4","end"];
+  const after = id => ORDER.indexOf(phase) >= ORDER.indexOf(id);
+  const showSetup   = after("setup1") && !after("brand1");
+  const showLine    = after("linedraw") && !after("brand1");
+  const showTaraPiv = after("tara") && !after("crash");
+  const showTwist   = after("tara") && !after("brand1");
+  const showMt      = after("mountain");
+  const showCrash   = after("crash") && !after("brand1");
+  const showBrand   = after("brand1");
+  const setupOp = showSetup ? (after("mountain")?0.3:1) : 0;
+  const twistOp = showTwist ? (after("mountain")?0.3:1) : 0;
+  const isCountingDown = countdown !== null;
+
+  const cardProps = { setupLines, twistLines, phase, flash, shaking, lineW, mtProg, after, showSetup, showLine, showTaraPiv, showTwist, showMt, showCrash, showBrand, setupOp, twistOp, countdown };
+
+  return (
+    <div style={{ background:"#07090F", minHeight:"100vh", fontFamily:"Georgia,serif", color:"#F0ECE4", padding:"20px 16px" }}>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Devanagari:wght@400;700;900&family=Bebas+Neue&display=swap');
+        *{box-sizing:border-box;margin:0;padding:0}
+        .deva{font-family:'Noto Sans Devanagari',serif}
+        .bebas{font-family:'Bebas Neue',sans-serif}
+        @keyframes slamIn{0%{transform:translateY(-50px) scale(1.1);opacity:0}65%{transform:translateY(6px) scale(0.97);opacity:1}100%{transform:translateY(0) scale(1);opacity:1}}
+        @keyframes slideUp{0%{transform:translateY(30px);opacity:0}100%{transform:translateY(0);opacity:1}}
+        @keyframes fadeIn{from{opacity:0}to{opacity:1}}
+        @keyframes introIn{0%{opacity:0;letter-spacing:5px}100%{opacity:1;letter-spacing:.5px}}
+        @keyframes shake{0%,100%{transform:translate(-50%,-50%)}20%{transform:translate(-47%,-52%) rotate(-1.5deg)}40%{transform:translate(-53%,-48%) rotate(1.5deg)}60%{transform:translate(-47%,-50%) rotate(-.8deg)}80%{transform:translate(-53%,-51%) rotate(.8deg)}}
+        @keyframes bgPulse{0%,100%{opacity:.035}50%{opacity:.08}}
+        @keyframes countPop{0%{transform:scale(1.7);opacity:0}100%{transform:scale(1);opacity:1}}
+        .slam{animation:slamIn .32s cubic-bezier(.22,1,.36,1) both}
+        .slideup{animation:slideUp .38s cubic-bezier(.22,1,.36,1) both}
+        .fadein{animation:fadeIn .45s ease both}
+        .intro{animation:introIn .7s ease both}
+        .shaking{animation:shake .38s ease}
+        select,textarea{appearance:none}
+        textarea{resize:vertical}
+      `}</style>
+
+      {/* ── FULLSCREEN RECORD MODE ── */}
+      {fullscreen && (
+        <div style={{ position:"fixed", inset:0, background:"#000", display:"flex", alignItems:"center", justifyContent:"center", zIndex:9999 }}>
+          {/* Scaled 9:16 card */}
+          <div style={{ width:390*fsScale, height:693*fsScale, position:"relative" }}>
+            <div style={{ transform:`scale(${fsScale})`, transformOrigin:"top left", width:390, height:693, position:"absolute", top:0, left:0 }}>
+              <ReelCard {...cardProps} cardW={390} cardH={693} />
+            </div>
+          </div>
+          {/* EXIT button — only shows when done or stopped */}
+          {(phase==="end" || phase==="idle") && !isCountingDown && (
+            <button onClick={reset}
+              style={{ position:"absolute", bottom:24, left:"50%", transform:"translateX(-50%)", background:"rgba(220,20,60,0.9)", border:"none", color:"#fff", padding:"12px 32px", fontFamily:"'Bebas Neue',sans-serif", fontSize:18, letterSpacing:3, borderRadius:6, cursor:"pointer", zIndex:10001 }}>
+              ✓ DONE — EXIT
+            </button>
+          )}
+          {/* STOP button during recording */}
+          {(playing || isCountingDown) && (
+            <button onClick={reset}
+              style={{ position:"absolute", top:16, right:16, background:"rgba(0,0,0,0.6)", border:"1px solid rgba(255,255,255,0.2)", color:"rgba(255,255,255,0.5)", padding:"6px 14px", fontFamily:"Georgia,serif", fontSize:11, borderRadius:4, cursor:"pointer", zIndex:10001, letterSpacing:1 }}>
+              ✕ STOP
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* ── CONTROLS ── */}
+      <div style={{ maxWidth:440, margin:"0 auto" }}>
+
+        {/* Header */}
+        <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:18 }}>
+          <div style={{ width:32, height:32, background:"#DC143C", borderRadius:3, display:"flex", alignItems:"center", justifyContent:"center" }}>
+            <span className="deva" style={{ color:"#fff", fontSize:17, fontWeight:900 }}>त</span>
+          </div>
+          <div>
+            <div className="bebas" style={{ fontSize:16, letterSpacing:3, color:"#F0ECE4", lineHeight:1 }}>TARA PARTY REEL</div>
+            <div className="deva" style={{ fontSize:9, color:"rgba(255,255,255,0.25)", letterSpacing:1 }}>देश को माया छ… तर? — reel generator</div>
+          </div>
+        </div>
+
+        {/* Preset picker */}
+        <div style={{ marginBottom:14 }}>
+          <div style={{ fontSize:10, color:"rgba(255,255,255,0.25)", letterSpacing:2, marginBottom:6 }}>LOAD A PRESET OR WRITE CUSTOM BELOW</div>
+          <div style={{ position:"relative" }}>
+            <select value={presetIdx}
+              onChange={e => {
+                const i = Number(e.target.value);
+                setPresetIdx(i);
+                if(i>0){ setSetupText(PRESETS[i].setup); setTwistText(PRESETS[i].twist); }
+              }}
+              style={{ width:"100%", background:"#0E1220", border:"1px solid #1C2A4A", color:"#F0ECE4", padding:"9px 36px 9px 14px", fontSize:13, borderRadius:6, fontFamily:"Georgia,serif", cursor:"pointer" }}>
+              {PRESETS.map((p,i)=><option key={p.id} value={i}>{p.label}</option>)}
+            </select>
+            <span style={{ position:"absolute", right:12, top:"50%", transform:"translateY(-50%)", color:"#3A5A8A", pointerEvents:"none" }}>▼</span>
+          </div>
+        </div>
+
+        {/* THREE TEXT BOXES */}
+        <div style={{ display:"flex", flexDirection:"column", gap:0 }}>
+
+          {/* Box 1: Setup */}
+          <div style={{ background:"#0A0D18", border:"1px solid #1C2A4A", borderRadius:"6px 6px 0 0", padding:"10px 14px" }}>
+            <div style={{ fontSize:9, color:"rgba(255,255,255,0.25)", letterSpacing:2, marginBottom:6 }}>SETUP — what they say</div>
+            <textarea
+              className="deva"
+              value={setupText}
+              onChange={e => { setSetupText(e.target.value); setPresetIdx(0); }}
+              rows={3}
+              placeholder={"देश माया गर्छु भन्ने मान्छे...\n(use newline to split into 2 lines)"}
+              style={{ width:"100%", background:"transparent", border:"none", outline:"none", color:"#F0ECE4", fontSize:15, lineHeight:1.7, fontFamily:"'Noto Sans Devanagari',serif", padding:0 }}
+            />
+          </div>
+
+          {/* Fixed तर? divider */}
+          <div style={{ background:"#DC143C", padding:"10px 0", textAlign:"center", borderLeft:"1px solid #DC143C", borderRight:"1px solid #DC143C" }}>
+            <span className="deva" style={{ fontSize:32, fontWeight:900, color:"#FFFFFF", letterSpacing:2 }}>तर?</span>
+          </div>
+
+          {/* Box 2: Twist */}
+          <div style={{ background:"#0A0D18", border:"1px solid #1C2A4A", borderRadius:"0 0 6px 6px", padding:"10px 14px" }}>
+            <div style={{ fontSize:9, color:"rgba(255,255,255,0.25)", letterSpacing:2, marginBottom:6 }}>TWIST — what they actually do</div>
+            <textarea
+              className="deva"
+              value={twistText}
+              onChange={e => { setTwistText(e.target.value); setPresetIdx(0); }}
+              rows={3}
+              placeholder={"...तर त्यही काम गर्छ।\n(use newline to split into 2 lines)"}
+              style={{ width:"100%", background:"transparent", border:"none", outline:"none", color:"rgba(190,175,155,0.95)", fontSize:15, lineHeight:1.7, fontFamily:"'Noto Sans Devanagari',serif", padding:0 }}
+            />
+          </div>
+        </div>
+
+        {/* PLAY BUTTON */}
+        <button onClick={play} disabled={!setupText.trim() || !twistText.trim()}
+          style={{ width:"100%", marginTop:14, background:setupText.trim()&&twistText.trim()?"#DC143C":"#1C2A4A", border:"none", color:"#fff", padding:"13px 0", fontFamily:"'Bebas Neue',sans-serif", fontSize:20, letterSpacing:3, borderRadius:6, cursor:setupText.trim()&&twistText.trim()?"pointer":"not-allowed", transition:"all .15s" }}>
+          ▶ RECORD + PLAY FULLSCREEN
+        </button>
+
+        <div style={{ marginTop:7, fontSize:10, color:"#1E3050", textAlign:"center", letterSpacing:1 }}>
+          TAP PLAY → 3 SECOND COUNTDOWN → START SCREEN RECORD → REEL PLAYS → DONE
+        </div>
+
+        {/* MINI PREVIEW */}
+        <div style={{ marginTop:20 }}>
+          <div style={{ fontSize:9, color:"rgba(255,255,255,0.2)", letterSpacing:2, marginBottom:8 }}>MINI PREVIEW (for reference only)</div>
+          <div style={{ transform:"scale(0.55)", transformOrigin:"top left", width:390, height:693, marginBottom:-320 }}>
+            <ReelCard {...cardProps} cardW={390} cardH={693} />
+          </div>
+        </div>
+
+        {/* CAPTION */}
+        <div style={{ marginTop:20, background:"#08090E", border:"1px solid #1C2A4A", borderRadius:8, padding:"13px 15px" }}>
+          <div style={{ fontSize:9, color:"#1E3050", letterSpacing:2, marginBottom:8 }}>CAPTION TO PASTE</div>
+          <div className="deva" style={{ fontSize:12, color:"#4A6A8A", lineHeight:1.9, whiteSpace:"pre-line" }}>{caption}</div>
+          <button onClick={()=>{ navigator.clipboard.writeText(caption); setCopied(true); setTimeout(()=>setCopied(false),1800); }}
+            style={{ marginTop:10, background:"transparent", border:"1px solid #1C2A4A", color:copied?"#1D9E75":"#3A5A8A", padding:"5px 14px", fontSize:11, borderRadius:4, cursor:"pointer", letterSpacing:1, transition:"color .2s" }}>
+            {copied?"✓ COPIED":"📋 COPY CAPTION"}
+          </button>
+        </div>
+
+      </div>
+    </div>
+  );
+}
